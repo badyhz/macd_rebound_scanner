@@ -7,7 +7,7 @@ Feishu 飞书版 Binance USDT-M Futures 短线 MACD 反弹扫描报警器。
 ## 功能
 
 - Binance USDT-M Futures K线扫描
-- 默认扫描 `ETHUSDT / BTCUSDT / SOLUSDT / BNBUSDT / DOGEUSDT / XRPUSDT`
+- 默认动态扫描 Binance USDT-M Futures `TRADING + PERPETUAL + USDT` 合约
 - 默认周期 `5m`
 - 只使用已收盘 K 线判断信号
 - 计算 MA7 / MA25 / MA99 / VOL_MA5 / VOL_MA10 / MACD
@@ -16,6 +16,9 @@ Feishu 飞书版 Binance USDT-M Futures 短线 MACD 反弹扫描报警器。
 - `data/alert_state.json` 防重复报警
 - `data/signals.csv` 记录信号
 - `logs/macd_rebound_scanner.log` 记录运行日志
+- `logs/scan_detail.jsonl` 记录每个交易对的判断结果
+- `logs/alerts.jsonl` 记录所有触发和飞书发送结果
+- `logs/errors.log` 记录异常
 - 支持 `--dry-run` 和 `--once`
 
 ## 安装
@@ -42,6 +45,10 @@ python main.py --config config.yaml --once --dry-run
 ```bash
 python main.py --config config.yaml --symbol ETHUSDT --interval 5m --once --dry-run
 ```
+
+默认 `config.yaml` 中 `scan.all_usdt_perpetual: true`，每轮会从 Binance USDT-M markets 动态加载全部 `TRADING + PERPETUAL + USDT` 交易对。要临时只扫一个交易对，用 `--symbol` 覆盖；要只扫配置中的固定列表，可把 `scan.all_usdt_perpetual` 改为 `false`。
+
+默认 `scan.exclude_non_ascii_symbols: true`，会排除少量非 ASCII 合约名，避免异常展示名进入生产提醒。
 
 如果当前网络需要本地代理访问 Binance futures API，可以在命令前设置代理环境变量：
 
@@ -83,6 +90,20 @@ export FEISHU_SECRET="你的飞书机器人签名密钥，如未开启签名则�
 python main.py --config config.yaml --once
 ```
 
+单独测试飞书链路：
+
+```bash
+python scripts/test_feishu.py
+```
+
+强制发送一条测试提醒，不依赖策略触发：
+
+```bash
+python main.py --config config.yaml --once --force-alert BTCUSDT
+```
+
+如果加 `--dry-run`，只写日志，不会真实发送飞书。
+
 ## 测试
 
 ```bash
@@ -91,6 +112,27 @@ python -m compileall -q main.py src tests
 ```
 
 不要用 `python -m compileall -q .` 做部署验收；它会递归编译 `.venv/site-packages`，可能被第三方包内部文件影响。这里只需要编译本项目的 `main.py`、`src/` 和 `tests/`。
+
+上线前验收建议：
+
+```bash
+python scripts/test_feishu.py
+python main.py --config config.yaml --once --dry-run
+python main.py --config config.yaml --once --force-alert BTCUSDT
+tail -n 100 logs/macd_rebound_scanner.log
+tail -n 20 logs/alerts.jsonl
+tail -n 20 logs/scan_detail.jsonl
+```
+
+部署模板：
+
+```bash
+cp deploy/systemd/macd-rebound-scanner.service /etc/systemd/system/macd-rebound-scanner.service
+cp deploy/logrotate.d/macd-rebound-scanner /etc/logrotate.d/macd-rebound-scanner
+systemctl daemon-reload
+systemctl enable macd-rebound-scanner
+systemctl restart macd-rebound-scanner
+```
 
 ## 策略说明
 

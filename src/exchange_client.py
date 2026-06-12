@@ -30,6 +30,34 @@ def display_symbol(symbol: str) -> str:
     return cleaned
 
 
+def list_usdt_perpetual_symbols(exchange: Any) -> list[str]:
+    """
+    Return Binance USDT-M futures symbols that are TRADING perpetual contracts.
+    Symbols are returned as display symbols such as BTCUSDT.
+    """
+    markets = exchange.load_markets()
+    selected: list[str] = []
+    for market in markets.values():
+        info = market.get("info", {})
+        quote = market.get("quote") or info.get("quoteAsset")
+        status = info.get("status") or market.get("status")
+        contract_type = info.get("contractType")
+        is_swap = bool(market.get("swap"))
+        is_linear = bool(market.get("linear"))
+
+        if quote != "USDT":
+            continue
+        if status != "TRADING":
+            continue
+        if contract_type and contract_type != "PERPETUAL":
+            continue
+        if not is_swap or not is_linear:
+            continue
+        selected.append(display_symbol(market["symbol"]))
+
+    return sorted(set(selected))
+
+
 def create_exchange() -> ccxt.binance:
     exchange_config: dict[str, Any] = {
         "enableRateLimit": True,

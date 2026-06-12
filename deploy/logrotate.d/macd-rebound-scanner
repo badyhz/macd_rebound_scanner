@@ -1,0 +1,9 @@
+/www/wwwroot/quant_monitor/macd_rebound_scanner/logs/*.log
+/www/wwwroot/quant_monitor/macd_rebound_scanner/logs/*.jsonl {
+    daily
+    rotate 14
+    compress
+    missingok
+    notifempty
+    copytruncate
+}

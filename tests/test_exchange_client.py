@@ -74,3 +74,40 @@ def test_create_exchange_omits_empty_proxy_env(monkeypatch):
     exchange_client.create_exchange()
 
     assert "proxies" not in captured
+
+
+def test_list_usdt_perpetual_symbols_filters_markets():
+    class FakeExchange:
+        def load_markets(self):
+            return {
+                "BTC/USDT:USDT": {
+                    "symbol": "BTC/USDT:USDT",
+                    "quote": "USDT",
+                    "swap": True,
+                    "linear": True,
+                    "info": {"status": "TRADING", "contractType": "PERPETUAL", "quoteAsset": "USDT"},
+                },
+                "ETH/USDC:USDC": {
+                    "symbol": "ETH/USDC:USDC",
+                    "quote": "USDC",
+                    "swap": True,
+                    "linear": True,
+                    "info": {"status": "TRADING", "contractType": "PERPETUAL", "quoteAsset": "USDC"},
+                },
+                "OLD/USDT:USDT": {
+                    "symbol": "OLD/USDT:USDT",
+                    "quote": "USDT",
+                    "swap": True,
+                    "linear": True,
+                    "info": {"status": "BREAK", "contractType": "PERPETUAL", "quoteAsset": "USDT"},
+                },
+                "BTC/USDT": {
+                    "symbol": "BTC/USDT",
+                    "quote": "USDT",
+                    "swap": False,
+                    "linear": False,
+                    "info": {"status": "TRADING", "quoteAsset": "USDT"},
+                },
+            }
+
+    assert exchange_client.list_usdt_perpetual_symbols(FakeExchange()) == ["BTCUSDT"]

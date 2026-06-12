@@ -31,7 +31,10 @@ def send_feishu_text(webhook_url: str, content: str, secret: str | None = None) 
 
     resp = requests.post(webhook_url, json=payload, timeout=10)
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
+    if isinstance(data, dict):
+        data["_http_status"] = resp.status_code
+    return data
 
 
 def _fmt_number(value: Any, decimals: int = 4) -> str:

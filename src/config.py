@@ -10,11 +10,15 @@ import yaml
 DEFAULT_CONFIG: dict[str, Any] = {
     "exchange": {"name": "binance", "market": "futures"},
     "scan": {
+        "all_usdt_perpetual": True,
         "intervals": ["5m"],
         "symbols": ["ETHUSDT", "BTCUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT"],
         "ohlcv_limit": 150,
         "loop_seconds": 60,
         "use_closed_candle_only": True,
+        "exclude_symbols": [],
+        "exclude_non_ascii_symbols": True,
+        "max_symbols": None,
     },
     "strategy": {
         "name": "macd_rebound",
@@ -43,6 +47,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "state_file": "data/alert_state.json",
         "signals_csv": "data/signals.csv",
         "log_file": "logs/macd_rebound_scanner.log",
+        "scan_detail_jsonl": "logs/scan_detail.jsonl",
+        "alerts_jsonl": "logs/alerts.jsonl",
+        "errors_log": "logs/errors.log",
     },
 }
 

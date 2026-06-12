@@ -1,0 +1,17 @@
+[Unit]
+Description=MACD Rebound Scanner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/www/wwwroot/quant_monitor/macd_rebound_scanner
+EnvironmentFile=/www/wwwroot/quant_monitor/macd_rebound_scanner/.env
+ExecStart=/www/wwwroot/quant_monitor/macd_rebound_scanner/.venv/bin/python main.py --config config.yaml
+Restart=always
+RestartSec=10
+StandardOutput=append:/www/wwwroot/quant_monitor/macd_rebound_scanner/logs/systemd.out.log
+StandardError=append:/www/wwwroot/quant_monitor/macd_rebound_scanner/logs/systemd.err.log
+
+[Install]
+WantedBy=multi-user.target
