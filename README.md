@@ -87,7 +87,10 @@ python main.py --config config.yaml --once
 
 ```bash
 pytest -q
+python -m compileall -q main.py src tests
 ```
+
+不要用 `python -m compileall -q .` 做部署验收；它会递归编译 `.venv/site-packages`，可能被第三方包内部文件影响。这里只需要编译本项目的 `main.py`、`src/` 和 `tests/`。
 
 ## 策略说明
 
