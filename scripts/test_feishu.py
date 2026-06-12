@@ -17,7 +17,7 @@ def main() -> int:
         print("sent=false error=FEISHU_WEBHOOK_URL is empty")
         return 2
 
-    content = "【MACD扫描器测试提醒】\nsymbol: BTCUSDT\ntimeframe: 5m\nmode: force_test\nresult: 飞书链路正常"
+    content = "【MACD扫描器测试提醒】\nsymbol: BTCUSDT\n周期：15m\nmode: force_test\nresult: 飞书链路正常"
     try:
         response = send_feishu_text(webhook_url, content, secret=secret)
     except Exception as exc:

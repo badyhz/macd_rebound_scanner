@@ -11,10 +11,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "exchange": {"name": "binance", "market": "futures"},
     "scan": {
         "all_usdt_perpetual": True,
-        "intervals": ["5m"],
+        "intervals": ["15m"],
         "symbols": ["ETHUSDT", "BTCUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT"],
         "ohlcv_limit": 150,
-        "loop_seconds": 60,
+        "loop_seconds": 120,
         "use_closed_candle_only": True,
         "exclude_symbols": [],
         "exclude_non_ascii_symbols": True,
@@ -42,6 +42,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "cooldown_minutes": 30,
         "webhook_url_env": "FEISHU_WEBHOOK_URL",
         "secret_env": "FEISHU_SECRET",
+    },
+    "heartbeat": {
+        "enabled": True,
+        "send_on_start": True,
+        "interval_rounds": 120,
     },
     "paths": {
         "state_file": "data/alert_state.json",

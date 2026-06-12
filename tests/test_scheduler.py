@@ -37,7 +37,7 @@ def test_dry_run_does_not_call_feishu(tmp_path, monkeypatch):
     cfg = {
         "_base_dir": str(tmp_path),
         "scan": {
-            "intervals": ["5m"],
+            "intervals": ["15m"],
             "symbols": ["ETHUSDT"],
             "all_usdt_perpetual": False,
             "ohlcv_limit": 150,
@@ -102,7 +102,7 @@ def test_scan_once_all_symbols_mode_uses_exchange_markets(tmp_path, monkeypatch)
     cfg = {
         "_base_dir": str(tmp_path),
         "scan": {
-            "intervals": ["5m"],
+            "intervals": ["15m"],
             "symbols": ["IGNORED"],
             "all_usdt_perpetual": True,
             "exclude_symbols": ["ETHUSDT"],
@@ -180,5 +180,38 @@ def test_send_force_alert_records_success(tmp_path, monkeypatch):
     assert result["sent"] is True
     assert result["webhook_http_status"] == 200
     assert "round_id:" in sent_messages[0]
+    assert "周期：15m" in sent_messages[0]
     assert "信号来源: force_alert" in sent_messages[0]
     assert "是否冷却跳过: 否" in sent_messages[0]
+
+
+def test_run_loop_sends_start_and_runtime_heartbeat(monkeypatch, tmp_path):
+    cfg = {
+        "_base_dir": str(tmp_path),
+        "scan": {"loop_seconds": 120, "intervals": ["15m"]},
+        "alert": {"webhook_url_env": "FEISHU_WEBHOOK_URL", "secret_env": "FEISHU_SECRET"},
+        "heartbeat": {"enabled": True, "send_on_start": True, "interval_rounds": 1},
+        "paths": {"alerts_jsonl": "logs/alerts.jsonl", "errors_log": "logs/errors.log"},
+    }
+    calls = []
+    summary = {
+        "round_id": "r1",
+        "market": "binance_um_futures",
+        "timeframe": "15m",
+        "symbols_total": 1,
+        "symbols_scanned": 1,
+        "triggered": 0,
+        "alerted": 0,
+        "cooldown_skipped": 0,
+        "errors": 0,
+        "duration_seconds": 1.0,
+    }
+
+    monkeypatch.setattr(scheduler, "create_exchange", lambda: FakeExchange())
+    monkeypatch.setattr(scheduler, "scan_once", lambda *args, **kwargs: ({"scanned": 1, "errors": 0}, summary))
+    monkeypatch.setattr(scheduler, "send_start_heartbeat", lambda *args, **kwargs: calls.append("start"))
+    monkeypatch.setattr(scheduler, "send_runtime_heartbeat", lambda *args, **kwargs: calls.append("runtime"))
+
+    scheduler.run_loop(cfg, once=True)
+
+    assert calls == ["start", "runtime"]

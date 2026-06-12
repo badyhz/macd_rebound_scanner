@@ -5,7 +5,7 @@ exchange:
 scan:
   all_usdt_perpetual: true
   intervals:
-    - 5m
+    - 15m
   symbols:
     - ETHUSDT
     - BTCUSDT
@@ -14,7 +14,7 @@ scan:
     - DOGEUSDT
     - XRPUSDT
   ohlcv_limit: 150
-  loop_seconds: 60
+  loop_seconds: 120
   use_closed_candle_only: true
   exclude_symbols: []
   exclude_non_ascii_symbols: true
@@ -50,6 +50,11 @@ alert:
   cooldown_minutes: 30
   webhook_url_env: FEISHU_WEBHOOK_URL
   secret_env: FEISHU_SECRET
+
+heartbeat:
+  enabled: true
+  send_on_start: true
+  interval_rounds: 120
 
 paths:
   state_file: data/alert_state.json

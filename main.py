@@ -14,7 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="Log alerts without sending Feishu messages")
     parser.add_argument("--once", action="store_true", help="Run one scan and exit")
     parser.add_argument("--symbol", help="Scan a single symbol, e.g. ETHUSDT")
-    parser.add_argument("--interval", help="Scan a single interval, e.g. 5m")
+    parser.add_argument("--interval", help="Scan a single interval, e.g. 15m")
     parser.add_argument("--force-alert", help="Send a Feishu test alert for the given symbol and exit")
     return parser.parse_args()
 
@@ -48,7 +48,7 @@ def main() -> int:
     if args.dry_run:
         logging.info("dry-run 模式启用，不会真实发送飞书")
     if args.force_alert:
-        interval = args.interval or cfg["scan"].get("intervals", ["5m"])[0]
+        interval = args.interval or cfg["scan"].get("intervals", ["15m"])[0]
         result = send_force_alert(cfg, args.force_alert, interval=interval, dry_run=args.dry_run)
         logging.info("force-alert result=%s", result)
         return 0 if result.get("sent") or args.dry_run else 1

@@ -9,6 +9,7 @@ from typing import Any
 
 from .config import resolve_path
 from .exchange_client import create_exchange, display_symbol, fetch_ohlcv, list_usdt_perpetual_symbols
+from .heartbeat import send_runtime_heartbeat, send_start_heartbeat, should_send_runtime_heartbeat
 from .indicators import add_indicators, ohlcv_to_dataframe
 from .jsonl_logger import append_jsonl
 from .notifier_feishu import format_signal_message, send_feishu_text
@@ -58,7 +59,7 @@ def _load_symbols(cfg: dict[str, Any], exchange: Any, symbol_override: str | Non
 def _selected_intervals(cfg: dict[str, Any], interval_override: str | None) -> list[str]:
     if interval_override:
         return [interval_override]
-    return [str(interval) for interval in cfg["scan"].get("intervals", ["5m"])]
+    return [str(interval) for interval in cfg["scan"].get("intervals", ["15m"])]
 
 
 def scan_once(
@@ -67,7 +68,8 @@ def scan_once(
     symbol_override: str | None = None,
     interval_override: str | None = None,
     exchange: Any | None = None,
-) -> dict[str, int]:
+    return_summary: bool = False,
+) -> dict[str, int] | tuple[dict[str, int], dict[str, Any]]:
     round_started = time.monotonic()
     round_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     logger.info("开始一轮扫描 round_id=%s dry_run=%s", round_id, dry_run)
@@ -87,6 +89,20 @@ def scan_once(
         logger.exception("加载交易对失败 round_id=%s", round_id)
         errors_path.parent.mkdir(parents=True, exist_ok=True)
         errors_path.write_text(traceback.format_exc(), encoding="utf-8")
+        if return_summary:
+            summary = {
+                "round_id": round_id,
+                "market": "unknown",
+                "timeframe": ",".join(_selected_intervals(cfg, interval_override)),
+                "symbols_total": 0,
+                "symbols_scanned": stats["scanned"],
+                "triggered": stats["triggered"],
+                "alerted": stats["alerted"],
+                "cooldown_skipped": stats["cooldown_skipped"],
+                "errors": stats["errors"],
+                "duration_seconds": round(time.monotonic() - round_started, 2),
+            }
+            return stats, summary
         return stats
 
     intervals = _selected_intervals(cfg, interval_override)
@@ -166,6 +182,7 @@ def scan_once(
                             "signal_time": candle_time,
                             "sent": False,
                             "skipped": "cooldown",
+                            "signal_source": "real_signal",
                             "error_message": cooldown_reason,
                         },
                     )
@@ -194,6 +211,7 @@ def scan_once(
                             "signal_time": candle_time,
                             "sent": False,
                             "dry_run": True,
+                            "signal_source": "real_signal",
                             "webhook_http_status": None,
                             "error_message": None,
                         },
@@ -210,6 +228,7 @@ def scan_once(
                             "interval": interval,
                             "signal_time": candle_time,
                             "sent": False,
+                            "signal_source": "real_signal",
                             "webhook_http_status": None,
                             "error_message": "FEISHU_WEBHOOK_URL is empty",
                         },
@@ -228,6 +247,7 @@ def scan_once(
                         "interval": interval,
                         "signal_time": candle_time,
                         "sent": True,
+                        "signal_source": "real_signal",
                         "webhook_http_status": response.get("_http_status"),
                         "response": response,
                         "error_message": None,
@@ -265,10 +285,12 @@ def scan_once(
         "duration_seconds": round(duration_seconds, 2),
     }
     logger.info("本轮扫描结束: %s summary=%s", stats, summary)
+    if return_summary:
+        return stats, summary
     return stats
 
 
-def send_force_alert(cfg: dict[str, Any], symbol: str, interval: str = "5m", dry_run: bool = False) -> dict[str, Any]:
+def send_force_alert(cfg: dict[str, Any], symbol: str, interval: str = "15m", dry_run: bool = False) -> dict[str, Any]:
     webhook_url = os.getenv(cfg["alert"].get("webhook_url_env", "FEISHU_WEBHOOK_URL"), "")
     secret = os.getenv(cfg["alert"].get("secret_env", "FEISHU_SECRET")) or None
     alerts_path = resolve_path(cfg, cfg["paths"].get("alerts_jsonl", "logs/alerts.jsonl"))
@@ -277,7 +299,7 @@ def send_force_alert(cfg: dict[str, Any], symbol: str, interval: str = "5m", dry
         "【MACD扫描器测试提醒】\n"
         f"round_id: {round_id}\n"
         f"symbol: {symbol.upper()}\n"
-        f"timeframe: {interval}\n"
+        f"周期：{interval}\n"
         "信号来源: force_alert\n"
         "是否冷却跳过: 否\n"
         "mode: force_test\n"
@@ -288,6 +310,7 @@ def send_force_alert(cfg: dict[str, Any], symbol: str, interval: str = "5m", dry
         "symbol": symbol.upper(),
         "interval": interval,
         "signal_time": datetime.now(),
+        "signal_source": "force_alert",
         "force_alert": True,
         "dry_run": dry_run,
     }
@@ -331,17 +354,23 @@ def run_loop(
     else:
         logger.warning("Feishu notifier disabled: webhook env is empty")
 
+    send_start_heartbeat(cfg, dry_run=dry_run, interval_override=interval_override)
+    round_count = 0
     while True:
         loop_started = time.monotonic()
-        scan_once(
+        stats, summary = scan_once(
             cfg,
             dry_run=dry_run,
             symbol_override=symbol_override,
             interval_override=interval_override,
             exchange=exchange,
+            return_summary=True,
         )
+        round_count += 1
+        if should_send_runtime_heartbeat(cfg, round_count):
+            send_runtime_heartbeat(cfg, summary, dry_run=dry_run)
         if once:
             return
-        sleep_seconds = int(cfg["scan"].get("loop_seconds", 60))
+        sleep_seconds = int(cfg["scan"].get("loop_seconds", 120))
         logger.info("等待 %s 秒后开始下一轮扫描 next_scan_after=%ss elapsed=%.2fs", sleep_seconds, sleep_seconds, time.monotonic() - loop_started)
         time.sleep(sleep_seconds)

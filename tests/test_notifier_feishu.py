@@ -25,7 +25,7 @@ def _evaluation(price):
 def test_format_signal_message_shows_utc_beijing_and_metadata():
     message = format_signal_message(
         "LOWUSDT",
-        "5m",
+        "15m",
         datetime(2026, 6, 12, 16, 45, 0),
         _evaluation(0.00061234),
         round_id="20260613-004500",
@@ -46,7 +46,7 @@ def test_format_signal_message_shows_utc_beijing_and_metadata():
 def test_format_signal_message_uses_six_decimals_for_sub_one_price():
     message = format_signal_message(
         "MIDUSDT",
-        "5m",
+        "15m",
         datetime(2026, 6, 12, 16, 45, 0, tzinfo=timezone.utc),
         _evaluation(0.5),
     )
@@ -59,7 +59,7 @@ def test_format_signal_message_uses_six_decimals_for_sub_one_price():
 def test_format_signal_message_uses_four_decimals_for_regular_price():
     message = format_signal_message(
         "BTCUSDT",
-        "5m",
+        "15m",
         "2026-06-12T16:45:00+00:00",
         _evaluation(100.0),
         signal_source="heartbeat",
