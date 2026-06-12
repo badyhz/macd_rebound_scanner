@@ -4,7 +4,7 @@ import base64
 import hashlib
 import hmac
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -44,6 +44,22 @@ def _fmt_number(value: Any, decimals: int = 4) -> str:
         return "NA"
 
 
+def _price_decimals(price: Any) -> int:
+    try:
+        number = abs(float(price))
+    except (TypeError, ValueError):
+        return 4
+    if number < 0.1:
+        return 8
+    if number < 1:
+        return 6
+    return 4
+
+
+def _fmt_price_relative(value: Any, price: Any) -> str:
+    return _fmt_number(value, _price_decimals(price))
+
+
 def _fmt_volume(value: Any) -> str:
     try:
         number = float(value)
@@ -56,40 +72,68 @@ def _fmt_volume(value: Any) -> str:
     return f"{number:.2f}"
 
 
+def _format_candle_times(candle_time: datetime | str) -> tuple[str, str]:
+    if isinstance(candle_time, datetime):
+        utc_time = candle_time
+    else:
+        try:
+            utc_time = datetime.fromisoformat(str(candle_time))
+        except ValueError:
+            return str(candle_time), "NA"
+
+    if utc_time.tzinfo is None:
+        utc_time = utc_time.replace(tzinfo=timezone.utc)
+    else:
+        utc_time = utc_time.astimezone(timezone.utc)
+
+    beijing_time = utc_time.astimezone(timezone(timedelta(hours=8)))
+    return (
+        utc_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        beijing_time.strftime("%Y-%m-%d %H:%M:%S UTC+8"),
+    )
+
+
 def format_signal_message(
     symbol: str,
     interval: str,
     candle_time: datetime | str,
     evaluation: dict[str, Any],
+    *,
+    round_id: str | None = None,
+    signal_source: str = "real_signal",
+    cooldown_skipped: bool = False,
 ) -> str:
     metrics = evaluation.get("metrics", {})
     reason = evaluation.get("reason", [])
-    if hasattr(candle_time, "strftime"):
-        candle_time_text = candle_time.strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        candle_time_text = str(candle_time)
+    utc_time_text, beijing_time_text = _format_candle_times(candle_time)
 
     reason_text = "\n".join(f"{index}. {item}" for index, item in enumerate(reason, start=1))
     above_ma99 = "是" if metrics.get("above_ma99") else "否"
+    cooldown_text = "是" if cooldown_skipped else "否"
+    price = metrics.get("price")
 
     return f"""【短线反弹启动信号】
 
+round_id：{round_id or "NA"}
+信号来源：{signal_source}
+是否冷却跳过：{cooldown_text}
 交易对：{symbol}
 周期：{interval}
 信号级别：B级
-当前价格：{_fmt_number(metrics.get("price"), 4)}
-K线时间：{candle_time_text}
+当前价格：{_fmt_price_relative(price, price)}
+K线时间(UTC)：{utc_time_text}
+K线时间(北京时间)：{beijing_time_text}
 
 触发原因：
 {reason_text}
 
 指标数据：
-DIF：{_fmt_number(metrics.get("dif"), 4)}
-DEA：{_fmt_number(metrics.get("dea"), 4)}
-MACD柱：{_fmt_number(metrics.get("hist"), 4)}
-MA7：{_fmt_number(metrics.get("ma7"), 4)}
-MA25：{_fmt_number(metrics.get("ma25"), 4)}
-MA99：{_fmt_number(metrics.get("ma99"), 4)}
+DIF：{_fmt_price_relative(metrics.get("dif"), price)}
+DEA：{_fmt_price_relative(metrics.get("dea"), price)}
+MACD柱：{_fmt_price_relative(metrics.get("hist"), price)}
+MA7：{_fmt_price_relative(metrics.get("ma7"), price)}
+MA25：{_fmt_price_relative(metrics.get("ma25"), price)}
+MA99：{_fmt_price_relative(metrics.get("ma99"), price)}
 成交量：{_fmt_volume(metrics.get("volume"))}
 VOL_MA5：{_fmt_volume(metrics.get("volume_ma5"))}
 量比：{_fmt_number(metrics.get("volume_ratio"), 2)}

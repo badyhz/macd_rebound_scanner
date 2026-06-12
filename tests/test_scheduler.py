@@ -167,9 +167,18 @@ def test_send_force_alert_records_success(tmp_path, monkeypatch):
     }
 
     monkeypatch.setenv("FEISHU_WEBHOOK_URL", "https://example.test/webhook")
-    monkeypatch.setattr(scheduler, "send_feishu_text", lambda *args, **kwargs: {"_http_status": 200, "code": 0})
+    sent_messages = []
+
+    def fake_send(webhook_url, content, secret=None):
+        sent_messages.append(content)
+        return {"_http_status": 200, "code": 0}
+
+    monkeypatch.setattr(scheduler, "send_feishu_text", fake_send)
 
     result = scheduler.send_force_alert(cfg, "BTCUSDT", dry_run=False)
 
     assert result["sent"] is True
     assert result["webhook_http_status"] == 200
+    assert "round_id:" in sent_messages[0]
+    assert "信号来源: force_alert" in sent_messages[0]
+    assert "是否冷却跳过: 否" in sent_messages[0]

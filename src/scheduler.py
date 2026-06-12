@@ -172,7 +172,15 @@ def scan_once(
                     continue
 
                 append_signal(signals_path, symbol, interval, candle_time, evaluation)
-                message = format_signal_message(symbol, interval, candle_time, evaluation)
+                message = format_signal_message(
+                    symbol,
+                    interval,
+                    candle_time,
+                    evaluation,
+                    round_id=round_id,
+                    signal_source="real_signal",
+                    cooldown_skipped=False,
+                )
 
                 if dry_run:
                     logger.info("dry-run: 本应报警但跳过真实飞书发送\n%s", message)
@@ -267,8 +275,11 @@ def send_force_alert(cfg: dict[str, Any], symbol: str, interval: str = "5m", dry
     round_id = datetime.now().strftime("%Y%m%d-%H%M%S-force")
     content = (
         "【MACD扫描器测试提醒】\n"
+        f"round_id: {round_id}\n"
         f"symbol: {symbol.upper()}\n"
         f"timeframe: {interval}\n"
+        "信号来源: force_alert\n"
+        "是否冷却跳过: 否\n"
         "mode: force_test\n"
         "result: 飞书链路正常"
     )
