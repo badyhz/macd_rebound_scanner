@@ -1,0 +1,1 @@
+"""MACD rebound scanner package."""
