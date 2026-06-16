@@ -9,7 +9,7 @@ from typing import Any
 
 from .config import resolve_path
 from .jsonl_logger import append_jsonl
-from .notifier_feishu import send_feishu_text
+from .notifier_feishu import feishu_response_error_message, feishu_response_success, send_feishu_text
 
 
 logger = logging.getLogger(__name__)
@@ -144,6 +144,15 @@ def _append_heartbeat_error(cfg: dict[str, Any], label: str) -> None:
         handle.write(traceback.format_exc())
 
 
+def _append_heartbeat_error_message(cfg: dict[str, Any], label: str, message: str) -> None:
+    errors_path = resolve_path(cfg, cfg["paths"].get("errors_log", "logs/errors.log"))
+    errors_path.parent.mkdir(parents=True, exist_ok=True)
+    with errors_path.open("a", encoding="utf-8") as handle:
+        handle.write(f"\n[{datetime.now().isoformat()}] {label}\n")
+        handle.write(message)
+        handle.write("\n")
+
+
 def _send_heartbeat(
     cfg: dict[str, Any],
     *,
@@ -182,8 +191,20 @@ def _send_heartbeat(
 
     try:
         response = send_feishu_text(webhook_url, content, secret=secret)
-        payload.update({"sent": True, "webhook_http_status": response.get("_http_status"), "response": response})
-        logger.info("%s sent=true webhook_http_status=%s", alert_type, response.get("_http_status"))
+        sent = feishu_response_success(response)
+        payload.update(
+            {
+                "sent": sent,
+                "webhook_http_status": response.get("_http_status"),
+                "response": response,
+                "error_message": None if sent else feishu_response_error_message(response),
+            }
+        )
+        if sent:
+            logger.info("%s sent=true webhook_http_status=%s", alert_type, response.get("_http_status"))
+        else:
+            _append_heartbeat_error_message(cfg, alert_type, str(payload["error_message"]))
+            logger.warning("%s sent=false error=%s", alert_type, payload["error_message"])
     except Exception as exc:
         payload["error_message"] = str(exc)
         append_jsonl(alerts_path, payload)

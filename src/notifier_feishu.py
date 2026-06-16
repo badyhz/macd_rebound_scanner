@@ -37,6 +37,20 @@ def send_feishu_text(webhook_url: str, content: str, secret: str | None = None) 
     return data
 
 
+def feishu_response_success(response: dict[str, Any]) -> bool:
+    if "code" in response:
+        return str(response.get("code")) == "0"
+    if "StatusCode" in response:
+        return str(response.get("StatusCode")) == "0"
+    return True
+
+
+def feishu_response_error_message(response: dict[str, Any]) -> str:
+    code = response.get("code", response.get("StatusCode", "NA"))
+    message = response.get("msg") or response.get("StatusMessage") or "Feishu response is not successful"
+    return f"Feishu response code={code} msg={message}"
+
+
 def _fmt_number(value: Any, decimals: int = 4) -> str:
     try:
         return f"{float(value):.{decimals}f}"

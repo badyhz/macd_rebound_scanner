@@ -119,6 +119,24 @@ def test_runtime_heartbeat_writes_summary(tmp_path, monkeypatch):
     assert record["summary"]["symbols_scanned"] == 524
 
 
+def test_runtime_heartbeat_records_business_failure(tmp_path, monkeypatch):
+    cfg = _cfg(tmp_path)
+
+    monkeypatch.setenv("FEISHU_WEBHOOK_URL", "https://example.test/webhook")
+    monkeypatch.setattr(
+        heartbeat,
+        "send_feishu_text",
+        lambda *args, **kwargs: {"_http_status": 200, "code": 11232, "msg": "frequency limited"},
+    )
+
+    result = heartbeat.send_runtime_heartbeat(cfg, {"round_id": "r1", "timeframe": "15m"}, dry_run=False)
+
+    assert result["sent"] is False
+    assert result["webhook_http_status"] == 200
+    assert result["error_message"] == "Feishu response code=11232 msg=frequency limited"
+    assert "Feishu response code=11232" in (tmp_path / "logs" / "errors.log").read_text(encoding="utf-8")
+
+
 def test_runtime_heartbeat_failure_does_not_raise(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path)
 

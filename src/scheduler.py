@@ -12,7 +12,7 @@ from .exchange_client import create_exchange, display_symbol, fetch_ohlcv, list_
 from .heartbeat import send_runtime_heartbeat, send_start_heartbeat, should_send_runtime_heartbeat
 from .indicators import add_indicators, ohlcv_to_dataframe
 from .jsonl_logger import append_jsonl
-from .notifier_feishu import format_signal_message, send_feishu_text
+from .notifier_feishu import feishu_response_error_message, feishu_response_success, format_signal_message, send_feishu_text
 from .signal_logger import append_signal
 from .state_store import AlertStateStore, make_alert_key
 from .strategy import evaluate_macd_rebound
@@ -108,8 +108,10 @@ def scan_once(
     intervals = _selected_intervals(cfg, interval_override)
     strategy_cfg = cfg["strategy"]
     cooldown_minutes = int(cfg["alert"].get("cooldown_minutes", 30))
+    min_send_interval_seconds = float(cfg["alert"].get("min_send_interval_seconds", 1.2))
     webhook_url = os.getenv(cfg["alert"].get("webhook_url_env", "FEISHU_WEBHOOK_URL"), "")
     secret = os.getenv(cfg["alert"].get("secret_env", "FEISHU_SECRET")) or None
+    last_feishu_send_at: float | None = None
 
     for interval in intervals:
         for raw_symbol in symbols:
@@ -235,7 +237,34 @@ def scan_once(
                     )
                     continue
 
+                if last_feishu_send_at is not None and min_send_interval_seconds > 0:
+                    elapsed_since_send = time.monotonic() - last_feishu_send_at
+                    if elapsed_since_send < min_send_interval_seconds:
+                        sleep_seconds = min_send_interval_seconds - elapsed_since_send
+                        logger.info("飞书发送节流 sleep=%.2fs", sleep_seconds)
+                        time.sleep(sleep_seconds)
+
                 response = send_feishu_text(webhook_url, message, secret=secret)
+                last_feishu_send_at = time.monotonic()
+                if not feishu_response_success(response):
+                    error_message = feishu_response_error_message(response)
+                    logger.warning("%s 飞书发送失败 http_status=%s error=%s", key, response.get("_http_status"), error_message)
+                    append_jsonl(
+                        alerts_path,
+                        {
+                            "round_id": round_id,
+                            "symbol": symbol,
+                            "interval": interval,
+                            "signal_time": candle_time,
+                            "sent": False,
+                            "signal_source": "real_signal",
+                            "webhook_http_status": response.get("_http_status"),
+                            "response": response,
+                            "error_message": error_message,
+                        },
+                    )
+                    continue
+
                 state_store.record_alert(key, evaluation["metrics"]["price"])
                 stats["alerted"] += 1
                 logger.info("%s 飞书发送成功 feishu_status=success http_status=%s sent=true", key, response.get("_http_status"))
@@ -327,8 +356,19 @@ def send_force_alert(cfg: dict[str, Any], symbol: str, interval: str = "15m", dr
 
     try:
         response = send_feishu_text(webhook_url, content, secret=secret)
-        payload.update({"sent": True, "webhook_http_status": response.get("_http_status"), "response": response, "error_message": None})
-        logger.info("force-alert sent=true symbol=%s webhook_http_status=%s", symbol.upper(), response.get("_http_status"))
+        sent = feishu_response_success(response)
+        payload.update(
+            {
+                "sent": sent,
+                "webhook_http_status": response.get("_http_status"),
+                "response": response,
+                "error_message": None if sent else feishu_response_error_message(response),
+            }
+        )
+        if sent:
+            logger.info("force-alert sent=true symbol=%s webhook_http_status=%s", symbol.upper(), response.get("_http_status"))
+        else:
+            logger.warning("force-alert sent=false symbol=%s error=%s", symbol.upper(), payload["error_message"])
     except Exception as exc:
         payload.update({"sent": False, "webhook_http_status": None, "error_message": str(exc)})
         logger.exception("force-alert sent=false symbol=%s", symbol.upper())

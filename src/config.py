@@ -40,6 +40,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "alert": {
         "provider": "feishu",
         "cooldown_minutes": 30,
+        "min_send_interval_seconds": 1.2,
         "webhook_url_env": "FEISHU_WEBHOOK_URL",
         "secret_env": "FEISHU_SECRET",
     },

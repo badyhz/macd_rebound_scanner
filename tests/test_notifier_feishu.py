@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from src.notifier_feishu import format_signal_message
+from src.notifier_feishu import feishu_response_error_message, feishu_response_success, format_signal_message
 
 
 def _evaluation(price):
@@ -82,3 +82,12 @@ def test_format_signal_message_uses_hour_title_label():
 
     assert message.startswith("【短线反弹启动信号-1 小时】")
     assert "周期：1h" in message
+
+
+def test_feishu_response_success_requires_business_code_zero():
+    assert feishu_response_success({"_http_status": 200, "code": 0}) is True
+    assert feishu_response_success({"_http_status": 200, "StatusCode": 0}) is True
+    assert feishu_response_success({"_http_status": 200, "code": 11232, "msg": "frequency limited"}) is False
+    assert feishu_response_error_message({"code": 11232, "msg": "frequency limited"}) == (
+        "Feishu response code=11232 msg=frequency limited"
+    )

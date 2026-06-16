@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.notifier_feishu import send_feishu_text
+from src.notifier_feishu import feishu_response_error_message, feishu_response_success, send_feishu_text
 
 
 def main() -> int:
@@ -22,6 +22,10 @@ def main() -> int:
         response = send_feishu_text(webhook_url, content, secret=secret)
     except Exception as exc:
         print(f"sent=false error={exc}")
+        return 1
+
+    if not feishu_response_success(response):
+        print(f"sent=false http_status={response.get('_http_status')} error={feishu_response_error_message(response)} response={response}")
         return 1
 
     print(f"sent=true http_status={response.get('_http_status')} response={response}")
