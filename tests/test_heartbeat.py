@@ -9,7 +9,7 @@ def _cfg(tmp_path, enabled=True, send_on_start=True, interval_rounds=2):
         "_base_dir": str(tmp_path),
         "scan": {
             "all_usdt_perpetual": True,
-            "intervals": ["15m"],
+            "intervals": ["15m", "1h"],
             "loop_seconds": 120,
         },
         "alert": {"webhook_url_env": "FEISHU_WEBHOOK_URL", "secret_env": "FEISHU_SECRET"},
@@ -25,14 +25,14 @@ def _cfg(tmp_path, enabled=True, send_on_start=True, interval_rounds=2):
     }
 
 
-def test_default_config_uses_heartbeat_and_15m(tmp_path):
+def test_default_config_uses_heartbeat_and_15m_1h(tmp_path):
     config_path = tmp_path / "config.yaml"
     config_path.write_text("{}", encoding="utf-8")
 
     cfg = load_config(config_path)
 
-    assert DEFAULT_CONFIG["scan"]["intervals"] == ["15m"]
-    assert cfg["scan"]["intervals"] == ["15m"]
+    assert DEFAULT_CONFIG["scan"]["intervals"] == ["15m", "1h"]
+    assert cfg["scan"]["intervals"] == ["15m", "1h"]
     assert cfg["scan"]["loop_seconds"] == 120
     assert cfg["heartbeat"]["enabled"] is True
     assert cfg["heartbeat"]["send_on_start"] is True
@@ -69,7 +69,7 @@ def test_start_heartbeat_writes_alert_record(tmp_path, monkeypatch):
     assert result["webhook_http_status"] == 200
     assert "【MACD扫描器已启动】" in sent_messages[0]
     assert "信号来源：heartbeat_start" in sent_messages[0]
-    assert "周期：15m" in sent_messages[0]
+    assert "周期：15m,1h" in sent_messages[0]
     record = json.loads((tmp_path / "logs" / "alerts.jsonl").read_text(encoding="utf-8").splitlines()[-1])
     assert record["alert_type"] == "heartbeat_start"
     assert record["signal_source"] == "heartbeat_start"

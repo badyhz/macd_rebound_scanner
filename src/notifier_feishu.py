@@ -93,6 +93,14 @@ def _format_candle_times(candle_time: datetime | str) -> tuple[str, str]:
     )
 
 
+def _interval_title_label(interval: str) -> str:
+    labels = {
+        "15m": "15 分钟",
+        "1h": "1 小时",
+    }
+    return labels.get(str(interval), str(interval))
+
+
 def format_signal_message(
     symbol: str,
     interval: str,
@@ -112,7 +120,7 @@ def format_signal_message(
     cooldown_text = "是" if cooldown_skipped else "否"
     price = metrics.get("price")
 
-    return f"""【短线反弹启动信号】
+    return f"""【短线反弹启动信号-{_interval_title_label(interval)}】
 
 round_id：{round_id or "NA"}
 信号来源：{signal_source}

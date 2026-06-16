@@ -33,6 +33,7 @@ def test_format_signal_message_shows_utc_beijing_and_metadata():
         cooldown_skipped=False,
     )
 
+    assert message.startswith("【短线反弹启动信号-15 分钟】")
     assert "round_id：20260613-004500" in message
     assert "信号来源：real_signal" in message
     assert "是否冷却跳过：否" in message
@@ -69,3 +70,15 @@ def test_format_signal_message_uses_four_decimals_for_regular_price():
     assert "当前价格：100.0000" in message
     assert "DIF：0.0000" in message
     assert "MA99：110.0000" in message
+
+
+def test_format_signal_message_uses_hour_title_label():
+    message = format_signal_message(
+        "BTCUSDT",
+        "1h",
+        "2026-06-12T16:00:00+00:00",
+        _evaluation(100.0),
+    )
+
+    assert message.startswith("【短线反弹启动信号-1 小时】")
+    assert "周期：1h" in message

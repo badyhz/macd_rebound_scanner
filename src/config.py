@@ -11,7 +11,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "exchange": {"name": "binance", "market": "futures"},
     "scan": {
         "all_usdt_perpetual": True,
-        "intervals": ["15m"],
+        "intervals": ["15m", "1h"],
         "symbols": ["ETHUSDT", "BTCUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT"],
         "ohlcv_limit": 150,
         "loop_seconds": 120,

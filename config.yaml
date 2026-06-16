@@ -6,6 +6,7 @@ scan:
   all_usdt_perpetual: true
   intervals:
     - 15m
+    - 1h
   symbols:
     - ETHUSDT
     - BTCUSDT

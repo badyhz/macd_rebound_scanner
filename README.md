@@ -8,7 +8,7 @@ Feishu 飞书版 Binance USDT-M Futures 短线 MACD 反弹扫描报警器。
 
 - Binance USDT-M Futures K线扫描
 - 默认动态扫描 Binance USDT-M Futures `TRADING + PERPETUAL + USDT` 合约
-- 默认周期 `5m`
+- 默认周期 `15m` 和 `1h`
 - 只使用已收盘 K 线判断信号
 - 计算 MA7 / MA25 / MA99 / VOL_MA5 / VOL_MA10 / MACD
 - 识别 B 级 MACD 空头衰竭短线反弹信号
@@ -43,7 +43,7 @@ python main.py --config config.yaml --once --dry-run
 单币种测试：
 
 ```bash
-python main.py --config config.yaml --symbol ETHUSDT --interval 5m --once --dry-run
+python main.py --config config.yaml --symbol ETHUSDT --interval 15m --once --dry-run
 ```
 
 默认 `config.yaml` 中 `scan.all_usdt_perpetual: true`，每轮会从 Binance USDT-M markets 动态加载全部 `TRADING + PERPETUAL + USDT` 交易对。要临时只扫一个交易对，用 `--symbol` 覆盖；要只扫配置中的固定列表，可把 `scan.all_usdt_perpetual` 改为 `false`。
@@ -55,7 +55,7 @@ python main.py --config config.yaml --symbol ETHUSDT --interval 5m --once --dry-
 ```bash
 HTTP_PROXY=http://127.0.0.1:7890 \
 HTTPS_PROXY=http://127.0.0.1:7890 \
-python main.py --config config.yaml --symbol ETHUSDT --interval 5m --once --dry-run
+python main.py --config config.yaml --symbol ETHUSDT --interval 15m --once --dry-run
 ```
 
 环境变量为空时，程序不会给 ccxt 设置代理。
@@ -66,17 +66,17 @@ OpenWrt / Mihomo / OpenClash 常见代理方式：
 # HTTP 代理，无认证
 HTTP_PROXY=http://192.168.31.1:7890 \
 HTTPS_PROXY=http://192.168.31.1:7890 \
-python main.py --config config.yaml --symbol ETHUSDT --interval 5m --once --dry-run
+python main.py --config config.yaml --symbol ETHUSDT --interval 15m --once --dry-run
 
 # HTTP 代理，Basic 认证。用户名或密码有特殊字符时需要 URL encode。
 HTTP_PROXY=http://用户名:密码@192.168.31.1:7890 \
 HTTPS_PROXY=http://用户名:密码@192.168.31.1:7890 \
-python main.py --config config.yaml --symbol ETHUSDT --interval 5m --once --dry-run
+python main.py --config config.yaml --symbol ETHUSDT --interval 15m --once --dry-run
 
 # SOCKS5H 代理，DNS 也交给代理处理。
 HTTP_PROXY=socks5h://192.168.31.1:7891 \
 HTTPS_PROXY=socks5h://192.168.31.1:7891 \
-python main.py --config config.yaml --symbol ETHUSDT --interval 5m --once --dry-run
+python main.py --config config.yaml --symbol ETHUSDT --interval 15m --once --dry-run
 ```
 
 如果 `curl -x http://192.168.31.1:7890 -Iv https://fapi.binance.com/fapi/v1/exchangeInfo` 返回 `407 Proxy Authentication Required`，说明代理端口已连通，但 OpenClash/Mihomo 开启了代理认证。需要填入认证账号密码，或在 OpenClash/Mihomo 中关闭 LAN 代理认证，并确保代理端口只在局域网内可用。
