@@ -8,6 +8,7 @@ data/alert_state.json
 data/signals.csv
 logs/*.log
 logs/*.jsonl
+logs/*.gz
 
 .env
 *.env
